@@ -283,6 +283,158 @@ function CardArt({ name, size = "sm" }) {
   );
 }
 
+// ─── DECK FULL POPUP ─────────────────────────────────────────────────
+// Click the +N button → dim overlay + centred popup showing all cards.
+function DeckFullPopup({ deck, onClose }) {
+  // Close on Escape key
+  useEffect(() => {
+    const handler = e => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  // Group cards by type
+  const typeOrder  = ["piece", "action", "support", "decree"];
+  const typeColors = { piece: "#3B6D11", action: "#A32D2D", support: "#185FA5", decree: "#BA7517" };
+  const typeLabels = { piece: "Piece",   action: "Action",  support: "Support",  decree: "Decree"  };
+
+  const grouped = {};
+  deck.cards.forEach(cardName => {
+    const typeKey = Object.keys(CARD_TYPES).find(k =>
+      CARD_TYPES[k].cards.some(c => c.name === cardName)
+    ) ?? "other";
+    if (!grouped[typeKey]) grouped[typeKey] = [];
+    grouped[typeKey].push(cardName);
+  });
+
+  return (
+    <>
+      {/* Dim overlay */}
+      <div
+        onClick={onClose}
+        style={{
+          position:   "fixed", inset: 0,
+          background: "rgba(0,0,0,0.72)",
+          zIndex:     900,
+          backdropFilter: "blur(2px)",
+        }}
+      />
+
+      {/* Popup */}
+      <div style={{
+        position:  "fixed",
+        top:       "50%", left: "50%",
+        transform: "translate(-50%,-50%)",
+        zIndex:    901,
+        background: T.bg1,
+        border:    `1px solid ${T.borderMid}`,
+        borderRadius: 12,
+        padding:   "20px 22px",
+        width:     440,
+        maxHeight: "80vh",
+        overflowY: "auto",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.85)",
+      }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.green }}>{deck.name}</div>
+            <div style={{ fontSize: 11, color: T.muted, fontFamily: "monospace", marginTop: 2 }}>
+              {deck.games} games · {deck.wr}% WR · {deck.cards.length} cards
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "rgba(255,255,255,0.06)", border: `0.5px solid ${T.border}`,
+              color: T.muted, borderRadius: 6, width: 28, height: 28,
+              fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >✕</button>
+        </div>
+
+        {/* WR bar */}
+        <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden", marginBottom: 18 }}>
+          <div style={{ width: `${deck.wr}%`, height: "100%", background: T.green, borderRadius: 2 }} />
+        </div>
+
+        {/* Cards by type */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {typeOrder.filter(k => grouped[k]).map(typeKey => (
+            <div key={typeKey}>
+              <div style={{
+                fontSize: 9, fontFamily: "monospace", textTransform: "uppercase",
+                letterSpacing: 1.5, color: typeColors[typeKey], marginBottom: 8,
+                paddingBottom: 5, borderBottom: `0.5px solid rgba(255,255,255,0.06)`,
+              }}>
+                {typeLabels[typeKey]} Cards — {grouped[typeKey].length}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {grouped[typeKey].map((cardName, i) => (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                    <CardArt name={cardName} size="sm" />
+                    <div style={{ fontSize: 7, color: T.muted, fontFamily: "monospace", textAlign: "center", maxWidth: 44, lineHeight: 1.3 }}>
+                      {cardName}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Core */}
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: `0.5px solid ${T.border}`, fontSize: 10, color: T.muted, fontFamily: "monospace" }}>
+          Core: <span style={{ color: T.green }}>{deck.core}</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── FAVORITE DECK CARD ───────────────────────────────────────────────
+function FavoriteDeckCard({ deck }) {
+  const [popupOpen, setPopupOpen] = useState(false);
+
+  return (
+    <>
+      <div style={{ background: T.bg1, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: T.green, marginBottom: 2 }}>{deck.name}</div>
+        <div style={{ fontSize: 11, color: T.muted, fontFamily: "monospace", marginBottom: 10 }}>{deck.games} games · {deck.wr}% WR</div>
+        <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden", marginBottom: 8 }}>
+          <div style={{ width: `${deck.wr}%`, height: "100%", background: T.green, borderRadius: 2 }} />
+        </div>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
+          {deck.cards.slice(0, 8).map((c, ci) => (
+            <CardArt key={ci} name={c} size="sm" />
+          ))}
+          {deck.cards.length > 8 && (
+            <div
+              onClick={() => setPopupOpen(true)}
+              style={{
+                width: 44, height: 62, borderRadius: 4,
+                background: "rgba(59,109,17,0.15)",
+                border: `0.5px solid ${T.green}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 11, color: T.green, cursor: "pointer",
+                fontFamily: "monospace", fontWeight: 700,
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(59,109,17,0.28)"}
+              onMouseLeave={e => e.currentTarget.style.background = "rgba(59,109,17,0.15)"}
+            >
+              +{deck.cards.length - 8}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {popupOpen && <DeckFullPopup deck={deck} onClose={() => setPopupOpen(false)} />}
+    </>
+  );
+}
+
 // ─── STAT CARD ────────────────────────────────────────────────────────
 function StatCard({ label, value, sub }) {
   return (
@@ -350,24 +502,7 @@ function DashboardPage({ profile }) {
       <SectionLabel>Favorite Decks</SectionLabel>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 20 }}>
         {profile.decks.map(deck => (
-          <div key={deck.name} style={{ background: T.bg1, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 14 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: T.green, marginBottom: 2 }}>{deck.name}</div>
-            <div style={{ fontSize: 11, color: T.muted, fontFamily: "monospace", marginBottom: 10 }}>{deck.games} games · {deck.wr}% WR</div>
-            <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden", marginBottom: 8 }}>
-              <div style={{ width: `${deck.wr}%`, height: "100%", background: T.green, borderRadius: 2 }} />
-            </div>
-            {/* Up to 8 card PNGs, then overflow count */}
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
-              {deck.cards.slice(0, 8).map((c, ci) => (
-                <CardArt key={ci} name={c} size="sm" />
-              ))}
-              {deck.cards.length > 8 && (
-                <div style={{ width: 44, height: 62, borderRadius: 4, background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: T.muted }}>
-                  +{deck.cards.length - 8}
-                </div>
-              )}
-            </div>
-          </div>
+          <FavoriteDeckCard key={deck.name} deck={deck} />
         ))}
       </div>
 
